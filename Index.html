@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Real-time Scan on Solana</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
+      color: #fff;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px;
+      font-size: 2em;
+      background: rgba(0, 0, 0, 0.2);
+      flex-wrap: wrap;
+    }
+    #sol-info-container {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+    #sol-info {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.7em;
+      background: rgba(255, 255, 255, 0.2);
+      padding: 10px;
+      border-radius: 5px;
+      text-align: center;
+    }
+    #sol-logo {
+      width: 30px;
+      height: 30px;
+    }
+    #sol-supply, #sol-tps {
+      font-size: 0.8em;
+      margin-top: 5px;
+    }
+    #price-chart-container {
+      width: 300px; /* Augmentation de la largeur */
+      height: 150px; /* Augmentation de la hauteur */
+      background: rgba(255, 255, 255, 0.1);
+      padding: 10px; /* Plus de padding pour l’espace */
+      border-radius: 5px;
+    }
+    #transactions {
+      flex: 1;
+      width: 100%;
+      margin: 20px 0;
+      background: rgba(0, 0, 0, 0.2);
+      padding: 20px;
+      box-sizing: border-box;
+      overflow-y: auto;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+    th, td {
+      padding: 10px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255,255,255,0.2);
+      font-size: 0.9em;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    th {
+      background: rgba(0, 0, 0, 0.3);
+    }
+    tbody tr:nth-child(1) { background: linear-gradient(90deg, #1a2a6c, #b21f1f, #fdbb2d); }
+    tbody tr:nth-child(2) { background: linear-gradient(90deg, rgba(26, 42, 108, 0.9), rgba(178, 31, 31, 0.9), rgba(253, 187, 45, 0.9)); }
+    tbody tr:nth-child(3) { background: linear-gradient(90deg, rgba(26, 42, 108, 0.8), rgba(178, 31, 31, 0.8), rgba(253, 187, 45, 0.8)); }
+
+    @media (max-width: 600px) {
+      header { font-size: 1.5em; padding: 10px; }
+      #sol-info { font-size: 0.6em; }
+      #sol-info-container { flex-direction: column; gap: 10px; }
+      #price-chart-container { width: 100%; max-width: 300px; height: 150px; }
+      th, td { font-size: 0.7em; padding: 5px; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+  
+
+  <div id="network-status">
+  <p><strong>Network Status : <span id="network-indicator">Loading...</span></strong></p>
+</div>
+	<div id="Title">
+  <p><strong>Last 30 Real-time Transactions<br> On Solana blockchain.</br></strong></p>
+</div>
+   	   
+    <div id="sol-info-container">
+	
+      <div id="sol-info">   
+        <img id="sol-logo" src="https://cryptologos.cc/logos/solana-sol-logo.png?v=024" alt="Solana Logo">
+        <span id="sol-price">SOL Price: Loading...</span>
+        <div id="sol-supply">
+          <p><strong>Total Supply:</strong> <span id="total-supply">Loading...</span></p>
+          <p><strong>Circulating Supply:</strong> <span id="circulating-supply">Loading...</span></p>
+          <p><strong>Non-Circulating Supply:</strong> <span id="non-circulating-supply">Loading...</span></p>
+        </div>
+        <div id="sol-tps">
+		<p><strong>TPS:</strong> <span id="current-tps">Loading...</span></p>
+		  </div>
+      </div>
+	  
+      <div id="price-chart-container">
+        <canvas id="price-chart"></canvas>
+      </div>
+	  
+	
+
+    </div>
+  </header>
+
+  <div id="transactions">
+    <table role="grid" aria-live="polite">
+      <thead>
+        <tr>
+          <th>Signature</th>
+          <th>Time</th>
+          <th>Block</th>
+          <th>Instructions</th>
+        </tr>
+      </thead>
+      <tbody id="transactions-body"></tbody>
+    </table>
+  </div>
+
+  <script>
+    const tbody = document.getElementById('transactions-body');
+    const priceElement = document.getElementById('sol-price');
+    const totalSupplyElement = document.getElementById('total-supply');
+    const circulatingSupplyElement = document.getElementById('circulating-supply');
+    const nonCirculatingSupplyElement = document.getElementById('non-circulating-supply');
+    const currentTpsElement = document.getElementById('current-tps');
+    const transactionQueue = [];
+    const MAX_TRANSACTIONS = 30;
+
+    // TPS
+    let transactionCount = 0;
+    const tpsWindow = 10;
+	
+	const networkIndicatorElement = document.getElementById('network-indicator');
+let lastTransactionTime = Date.now();
+let websocketErrors = 0;
+const errorThreshold = 5;  // Seuil d'erreurs pour considérer que le réseau est congestionné
+const confirmationThreshold = 5000;  // 5 secondes comme délai max de confirmation
+
+// Fonction pour mettre à jour l'état du réseau
+function updateNetworkStatus() {
+  const currentTime = Date.now();
+  const confirmationDelay = currentTime - lastTransactionTime;
+
+  // Si la latence de confirmation est trop élevée ou trop d'erreurs WebSocket
+  if (confirmationDelay > confirmationThreshold || websocketErrors > errorThreshold) {
+    networkIndicatorElement.textContent = "Congested; too many latence or WebSocket errors.";
+    networkIndicatorElement.style.color = "red";
+  } else {
+    networkIndicatorElement.textContent = "OK";
+    networkIndicatorElement.style.color = "green";
+  }
+}
+
+// Fonction pour gérer les erreurs WebSocket
+function handleWebSocketError() {
+  websocketErrors++;
+  updateNetworkStatus();
+}
+
+// Fonction pour réinitialiser les erreurs WebSocket
+function resetWebSocketErrorCount() {
+  websocketErrors = 0;
+  updateNetworkStatus();
+}
+
+// Ajouter un délai entre les mises à jour
+setInterval(updateNetworkStatus, 5000);
+
+// Modification du WebSocket pour prendre en compte les erreurs
+const socket = new WebSocket('wss://api.mainnet-beta.solana.com');
+
+socket.onopen = function() {
+  console.log('WebSocket connecté');
+  resetWebSocketErrorCount();  // Réinitialiser les erreurs lorsque la connexion est ouverte
+  socket.send(JSON.stringify({
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "logsSubscribe",
+    "params": ["all", { "commitment": "confirmed" }]
+  }));
+};
+
+socket.onerror = function(error) {
+  console.error('Erreur WebSocket :', error);
+  handleWebSocketError();  // Enregistrer une erreur WebSocket
+};
+
+socket.onmessage = function(event) {
+  const data = JSON.parse(event.data);
+  if (data.method === "logsNotification") {
+    lastTransactionTime = Date.now();  // Mise à jour du délai de confirmation
+    updateNetworkStatus();  // Mettre à jour le statut du réseau après chaque transaction
+  }
+};
+
+socket.onclose = function() {
+  console.log('WebSocket déconnecté');
+  handleWebSocketError();  // Compter une erreur si WebSocket se déconnecte
+};
+
+
+    // Graphique du prix
+    const priceData = [];
+    const priceLabels = [];
+    const maxDataPoints = 20;
+    const ctx = document.getElementById('price-chart').getContext('2d');
+    const priceChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: priceLabels,
+        datasets: [{
+          label: 'Prix SOL (USD)',
+          data: priceData,
+          borderColor: '#000000',
+          backgroundColor: 'rgba(0, 0, 0, 0.1)',
+          fill: true,
+          tension: 0.1,
+          borderWidth: 2 // Ligne légèrement plus épaisse pour visibilité
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          x: {
+            display: true,
+            title: {
+              display: true,
+              text: 'Heure',
+              color: '#fff',
+              font: { size: 14 } // Taille augmentée
+            },
+            ticks: { color: '#fff', font: { size: 12 } }
+          },
+          y: {
+            beginAtZero: false,
+            title: {
+              display: true,
+              text: 'Prix (USD)',
+              color: '#fff',
+              font: { size: 14 }
+            },
+            ticks: { color: '#fff', font: { size: 12 } }
+          }
+        },
+        plugins: {
+          legend: {
+            display: true,
+            labels: { 
+              color: '#fff',
+              font: { size: 14 } // Légende plus grande
+            }
+          }
+        }
+      }
+    });
+
+    function createSocket() {
+      const socket = new WebSocket('wss://api.mainnet-beta.solana.com');
+
+      socket.onopen = function() {
+        console.log('WebSocket connecté');
+        socket.send(JSON.stringify({
+          "jsonrpc": "2.0",
+          "id": 1,
+          "method": "logsSubscribe",
+          "params": ["all", { "commitment": "confirmed" }]
+        }));
+      };
+
+      socket.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+        if (data.method === "logsNotification") {
+          const context = data.params.result.context;
+          const value = data.params.result.value;
+          const signature = value.signature || 'N/A';
+          const time = new Date().toLocaleTimeString();
+          const block = context?.slot || 'N/A';
+          const instructions = value.logs?.length ? value.logs.join('\n') : 'Aucun log disponible';
+
+          const row = document.createElement('tr');
+          row.appendChild(createCell(signature));
+          row.appendChild(createCell(time));
+          row.appendChild(createCell(block));
+          row.appendChild(createCell(instructions));
+          transactionQueue.push(row);
+
+          transactionCount++;
+        }
+      };
+
+      socket.onclose = function() {
+        console.log('WebSocket déconnecté, tentative de reconnexion dans 2s...');
+        setTimeout(createSocket, 2000);
+      };
+
+      socket.onerror = function(error) {
+        console.error('Erreur WebSocket :', error);
+      };
+    }
+
+    function createCell(text) {
+      const cell = document.createElement('td');
+      cell.textContent = text;
+      return cell;
+    }
+
+    function updateTransactions() {
+      if (transactionQueue.length > 0) {
+        const fragment = document.createDocumentFragment();
+        while (transactionQueue.length > 0 && fragment.childNodes.length < 5) {
+          fragment.appendChild(transactionQueue.shift());
+        }
+        tbody.prepend(fragment);
+        while (tbody.childNodes.length > MAX_TRANSACTIONS) {
+          tbody.removeChild(tbody.lastChild);
+        }
+      }
+    }
+
+    async function fetchSolPrice() {
+      try {
+        const res = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=SOLUSDT');
+        if (!res.ok) throw new Error('Réponse réseau invalide');
+        const data = await res.json();
+        const price = parseFloat(data.price).toFixed(2);
+        priceElement.textContent = `SOL Price: $${price}`;
+
+        // Mise à jour du graphique
+        const now = new Date().toLocaleTimeString();
+        priceData.push(price);
+        priceLabels.push(now);
+        if (priceData.length > maxDataPoints) {
+          priceData.shift();
+          priceLabels.shift();
+        }
+        priceChart.update();
+      } catch (e) {
+        priceElement.textContent = `SOL Price: Indisponible (${e.message})`;
+      }
+    }
+
+    async function fetchSolSupply() {
+      try {
+        const res = await fetch('https://api.coingecko.com/api/v3/coins/solana');
+        if (!res.ok) throw new Error('Réponse réseau invalide');
+        const data = await res.json();
+        const totalSupply = data.market_data.total_supply;
+        const circulatingSupply = data.market_data.circulating_supply;
+        totalSupplyElement.textContent = `${totalSupply.toLocaleString()} SOL`;
+        circulatingSupplyElement.textContent = `${circulatingSupply.toLocaleString()} SOL`;
+        nonCirculatingSupplyElement.textContent = `${(totalSupply - circulatingSupply).toLocaleString()} SOL`;
+      } catch (e) {
+        totalSupplyElement.textContent = circulatingSupplyElement.textContent = nonCirculatingSupplyElement.textContent = `Indisponible (${e.message})`;
+      }
+    }
+
+    function updateTPS() {
+      const tps = (transactionCount / tpsWindow).toFixed(1);
+      currentTpsElement.textContent = `${tps} tx/s`;
+      transactionCount = 0;
+    }
+
+    // Initialisation
+    createSocket();
+    setInterval(updateTransactions, 300);
+    fetchSolPrice();
+    fetchSolSupply();
+    setInterval(fetchSolPrice, 10000);
+    setInterval(fetchSolSupply, 30000);
+    setInterval(updateTPS, tpsWindow * 1000);
+  </script>
+</body>
+</html>
