@@ -1,0 +1,75 @@
+25 Feb. 2025 : 
+
+1- Add a Transaction Details Modal. This allow users to click on a transaction row in the table and see detailed 
+information (e.g., signature, time, block, and full instructions) in a popup modal.
+
+How It Works : 
+When a new transaction arrives via WebSocket, it’s added to the table as before, but now each row is clickable.
+Clicking a row opens the modal with full details: signature, time, block, and the complete instruction logs (not truncated).
+You can close the modal by clicking the "X" or anywhere outside the content box. 
+
+2- Add a Pause/Resume Updates button. This allow users to temporarily stop the WebSocket-driven transaction updates so they can inspect the 
+current data without it refreshing, and then resume when ready. 
+
+How It Works : 
+Default State: Starts with updates running (button says "Pause").
+Pause: Clicking "Pause" sets isPaused to true, stops table updates, and changes the button to "Resume" with a red background. 
+New transactions still queue up in transactionQueue.
+Resume: Clicking "Resume" sets isPaused to false, restarts updates, processes any queued transactions immediately, 
+and switches the button back to "Pause" with its original style.
+
+3- Add Loading Indicators for the price chart and the transactions table. 
+These will provide visual feedback to users while the initial data is being fetched, improving the user experience.
+
+How It Works : 
+
+Initial Load:
+
+The chart shows a spinning circle until the first SOL price is fetched from Binance.
+The transactions table shows "Loading Transactions..." until the first WebSocket message arrives.
+
+Data Loaded:
+The chart loader disappears after the first successful fetchSolPrice() call updates the chart.
+The table loader disappears as soon as the first transaction is queued and ready to display.
+
+4-Add a Search Bar to filter transactions by signature or block number in the table.
+
+How It Works : 
+Type in the search bar (e.g., part of a signature or block number), and the table instantly filters to show only matching rows.
+Clear the input to see all rows again.
+The filter persists as new transactions are added, thanks to the reapplication in updateTransactions.
+
+5- Display 50 Transactions; 
+Increase Limit: Update MAX_TRANSACTIONS from 30 to 50 in the JavaScript.
+
+How It Works : 
+The table now holds up to 50 transactions instead of 30, with older ones dropping off as new ones arrive.
+
+6- Transaction Animation: A subtle fade-in effect for new table rows using CSS animation. Network Status Icon: 
+Replace the "OK"/"Congested" text with a colored dot indicator (green for OK, red for congested).
+
+How It Works : 
+Transaction Animation: Each new transaction row fades in over 0.5 seconds when added to the table. This applies whether you’re paused or not 
+(though new rows only appear when unpaused).
+
+Network Status Icon: Starts as a green dot (OK) when the WebSocket connects.
+Turns red if latency exceeds 5 seconds or WebSocket errors exceed 5, with a tooltip explaining why.
+Updates every 5 seconds via setInterval.
+
+7- Update Transactions to 500ms instead of 300ms.
+Harmony with the animation: The 500 ms interval matches the duration of the fadeIn (0.5 s), 
+making the appearance of new rows more predictable and pleasing to the eye.
+Balance: It’s frequent enough to regularly clear the queue without overloading the DOM, while still staying within a 'real-time' range.
+Performance: Slightly reduces the load compared to 300 ms, which is helpful if you’re testing on a variety of devices.
+
+8- Add Color-Coded TPS : This will change the color of the TPS (Transactions Per Second) text based on its value: 
+green for high, yellow for medium, and red for low. 
+
+How It Works : 
+TPS Calculation: Every 10 seconds (tpsWindow * 1000), updateTPS() calculates the TPS by dividing transactionCount by tpsWindow (10 seconds) 
+and resets the count.
+Color Logic:
+If TPS > 1000 (e.g., >100 tx/s), the text turns green.
+If TPS is between 500 and 1000 (50–100 tx/s), it turns yellow.
+If TPS < 500 (<50 tx/s), it turns red.
+Visual Feedback: The color transitions smoothly over 0.3 seconds due to the CSS transition.
