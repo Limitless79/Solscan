@@ -50,11 +50,12 @@
       margin-top: 5px;
     }
     #price-chart-container {
-      width: 300px; /* Augmentation de la largeur */
-      height: 150px; /* Augmentation de la hauteur */
+      width: 300px;
+      height: 150px;
       background: rgba(255, 255, 255, 0.1);
-      padding: 10px; /* Plus de padding pour l’espace */
+      padding: 10px;
       border-radius: 5px;
+      position: relative;
     }
     #transactions {
       flex: 1;
@@ -65,6 +66,7 @@
       box-sizing: border-box;
       overflow-y: auto;
       box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+      position: relative;
     }
     table {
       width: 100%;
@@ -79,13 +81,145 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      cursor: pointer;
     }
     th {
       background: rgba(0, 0, 0, 0.3);
     }
+    tbody tr {
+      animation: fadeIn 0.5s;
+    }
     tbody tr:nth-child(1) { background: linear-gradient(90deg, #1a2a6c, #b21f1f, #fdbb2d); }
     tbody tr:nth-child(2) { background: linear-gradient(90deg, rgba(26, 42, 108, 0.9), rgba(178, 31, 31, 0.9), rgba(253, 187, 45, 0.9)); }
     tbody tr:nth-child(3) { background: linear-gradient(90deg, rgba(26, 42, 108, 0.8), rgba(178, 31, 31, 0.8), rgba(253, 187, 45, 0.8)); }
+
+    /* Modal Styles */
+    #modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    #modal-content {
+      background: rgba(255, 255, 255, 0.9);
+      color: #000;
+      padding: 20px;
+      border-radius: 10px;
+      max-width: 600px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+      position: relative;
+    }
+    #modal-close {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 1.5em;
+      cursor: pointer;
+      background: none;
+      border: none;
+      color: #000;
+    }
+    #modal-details {
+      white-space: pre-wrap;
+      font-size: 0.9em;
+    }
+
+    /* Pause/Resume Button Styles */
+    #pause-resume-btn {
+      padding: 10px 20px;
+      font-size: 0.9em;
+      background: rgba(255, 255, 255, 0.2);
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    #pause-resume-btn:hover {
+      background: rgba(255, 255, 255, 0.4);
+    }
+    #pause-resume-btn.paused {
+      background: rgba(255, 0, 0, 0.5);
+    }
+
+    /* Loading Indicator Styles */
+    .loader {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 10;
+    }
+    #chart-loader {
+      width: 40px;
+      height: 40px;
+      border: 4px solid rgba(255, 255, 255, 0.3);
+      border-top: 4px solid #fff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    #table-loader {
+      font-size: 1.2em;
+      text-align: center;
+      padding: 20px;
+    }
+    @keyframes spin {
+      0% { transform: translate(-50%, -50%) rotate(0deg); }
+      100% { transform: translate(-50%, -50%) rotate(360deg); }
+    }
+    .hidden {
+      display: none;
+    }
+
+    /* Search Bar Styles */
+    #search-bar {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 10px;
+      background: rgba(255, 255, 255, 0.2);
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      font-size: 1em;
+      box-sizing: border-box;
+    }
+    #search-bar::placeholder {
+      color: rgba(255, 255, 255, 0.7);
+    }
+    #search-bar:focus {
+      outline: none;
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    /* Transaction Animation */
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    /* Network Status Icon Styles */
+    #network-indicator {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background-color: gray;
+      margin-left: 5px;
+      vertical-align: middle;
+    }
+
+    /* TPS Color Transition */
+    #current-tps {
+      transition: color 0.3s ease; /* Smooth color change */
+    }
 
     @media (max-width: 600px) {
       header { font-size: 1.5em; padding: 10px; }
@@ -93,23 +227,21 @@
       #sol-info-container { flex-direction: column; gap: 10px; }
       #price-chart-container { width: 100%; max-width: 300px; height: 150px; }
       th, td { font-size: 0.7em; padding: 5px; }
+      #pause-resume-btn { font-size: 0.8em; padding: 8px 16px; }
+      #search-bar { font-size: 0.9em; padding: 8px; }
     }
   </style>
 </head>
 <body>
-
   <header>
-  
-
-  <div id="network-status">
-  <p><strong>Network Status : <span id="network-indicator">Loading...</span></strong></p>
-</div>
-	<div id="Title">
-  <p><strong>Last 30 Real-time Transactions<br> On Solana blockchain.</br></strong></p>
-</div>
-   	   
+    <div id="network-status">
+      <p><strong>Network Status: <span id="network-indicator" title="Loading..."></span></strong></p>
+    </div>
+    <div id="Title">
+      <p><strong>Last 50 Real-time Transactions<br> On Solana blockchain.</strong></p>
+      <button id="pause-resume-btn">Pause</button>
+    </div>
     <div id="sol-info-container">
-	
       <div id="sol-info">   
         <img id="sol-logo" src="https://cryptologos.cc/logos/solana-sol-logo.png?v=024" alt="Solana Logo">
         <span id="sol-price">SOL Price: Loading...</span>
@@ -119,20 +251,19 @@
           <p><strong>Non-Circulating Supply:</strong> <span id="non-circulating-supply">Loading...</span></p>
         </div>
         <div id="sol-tps">
-		<p><strong>TPS:</strong> <span id="current-tps">Loading...</span></p>
-		  </div>
+          <p><strong>TPS:</strong> <span id="current-tps">Loading...</span></p>
+        </div>
       </div>
-	  
       <div id="price-chart-container">
+        <div id="chart-loader" class="loader"></div>
         <canvas id="price-chart"></canvas>
       </div>
-	  
-	
-
     </div>
   </header>
 
   <div id="transactions">
+    <input type="text" id="search-bar" placeholder="Search by signature or block number...">
+    <div id="table-loader" class="loader">Loading Transactions...</div>
     <table role="grid" aria-live="polite">
       <thead>
         <tr>
@@ -146,6 +277,14 @@
     </table>
   </div>
 
+  <div id="modal">
+    <div id="modal-content">
+      <button id="modal-close">×</button>
+      <h2>Transaction Details</h2>
+      <div id="modal-details"></div>
+    </div>
+  </div>
+
   <script>
     const tbody = document.getElementById('transactions-body');
     const priceElement = document.getElementById('sol-price');
@@ -154,82 +293,83 @@
     const nonCirculatingSupplyElement = document.getElementById('non-circulating-supply');
     const currentTpsElement = document.getElementById('current-tps');
     const transactionQueue = [];
-    const MAX_TRANSACTIONS = 30;
+    const MAX_TRANSACTIONS = 50;
 
     // TPS
     let transactionCount = 0;
     const tpsWindow = 10;
-	
-	const networkIndicatorElement = document.getElementById('network-indicator');
-let lastTransactionTime = Date.now();
-let websocketErrors = 0;
-const errorThreshold = 5;  // Seuil d'erreurs pour considérer que le réseau est congestionné
-const confirmationThreshold = 5000;  // 5 secondes comme délai max de confirmation
 
-// Fonction pour mettre à jour l'état du réseau
-function updateNetworkStatus() {
-  const currentTime = Date.now();
-  const confirmationDelay = currentTime - lastTransactionTime;
+    const networkIndicatorElement = document.getElementById('network-indicator');
+    let lastTransactionTime = Date.now();
+    let websocketErrors = 0;
+    const errorThreshold = 5;
+    const confirmationThreshold = 5000;
 
-  // Si la latence de confirmation est trop élevée ou trop d'erreurs WebSocket
-  if (confirmationDelay > confirmationThreshold || websocketErrors > errorThreshold) {
-    networkIndicatorElement.textContent = "Congested; too many latence or WebSocket errors.";
-    networkIndicatorElement.style.color = "red";
-  } else {
-    networkIndicatorElement.textContent = "OK";
-    networkIndicatorElement.style.color = "green";
-  }
-}
+    let isPaused = false;
+    const pauseResumeBtn = document.getElementById('pause-resume-btn');
 
-// Fonction pour gérer les erreurs WebSocket
-function handleWebSocketError() {
-  websocketErrors++;
-  updateNetworkStatus();
-}
+    const chartLoader = document.getElementById('chart-loader');
+    const tableLoader = document.getElementById('table-loader');
+    const searchBar = document.getElementById('search-bar');
 
-// Fonction pour réinitialiser les erreurs WebSocket
-function resetWebSocketErrorCount() {
-  websocketErrors = 0;
-  updateNetworkStatus();
-}
+    networkIndicatorElement.style.backgroundColor = "gray";
+    networkIndicatorElement.title = "Loading...";
 
-// Ajouter un délai entre les mises à jour
-setInterval(updateNetworkStatus, 5000);
+    function updateNetworkStatus() {
+      const currentTime = Date.now();
+      const confirmationDelay = currentTime - lastTransactionTime;
+      if (confirmationDelay > confirmationThreshold || websocketErrors > errorThreshold) {
+        networkIndicatorElement.style.backgroundColor = "red";
+        networkIndicatorElement.title = "Congested: Too much latency or WebSocket errors";
+      } else {
+        networkIndicatorElement.style.backgroundColor = "green";
+        networkIndicatorElement.title = "OK";
+      }
+    }
 
-// Modification du WebSocket pour prendre en compte les erreurs
-const socket = new WebSocket('wss://api.mainnet-beta.solana.com');
+    function handleWebSocketError() {
+      websocketErrors++;
+      updateNetworkStatus();
+    }
 
-socket.onopen = function() {
-  console.log('WebSocket connecté');
-  resetWebSocketErrorCount();  // Réinitialiser les erreurs lorsque la connexion est ouverte
-  socket.send(JSON.stringify({
-    "jsonrpc": "2.0",
-    "id": 1,
-    "method": "logsSubscribe",
-    "params": ["all", { "commitment": "confirmed" }]
-  }));
-};
+    function resetWebSocketErrorCount() {
+      websocketErrors = 0;
+      updateNetworkStatus();
+    }
 
-socket.onerror = function(error) {
-  console.error('Erreur WebSocket :', error);
-  handleWebSocketError();  // Enregistrer une erreur WebSocket
-};
+    setInterval(updateNetworkStatus, 5000);
 
-socket.onmessage = function(event) {
-  const data = JSON.parse(event.data);
-  if (data.method === "logsNotification") {
-    lastTransactionTime = Date.now();  // Mise à jour du délai de confirmation
-    updateNetworkStatus();  // Mettre à jour le statut du réseau après chaque transaction
-  }
-};
+    const socket = new WebSocket('wss://api.mainnet-beta.solana.com');
 
-socket.onclose = function() {
-  console.log('WebSocket déconnecté');
-  handleWebSocketError();  // Compter une erreur si WebSocket se déconnecte
-};
+    socket.onopen = function() {
+      console.log('WebSocket connecté');
+      resetWebSocketErrorCount();
+      socket.send(JSON.stringify({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "logsSubscribe",
+        "params": ["all", { "commitment": "confirmed" }]
+      }));
+    };
 
+    socket.onerror = function(error) {
+      console.error('Erreur WebSocket :', error);
+      handleWebSocketError();
+    };
 
-    // Graphique du prix
+    socket.onmessage = function(event) {
+      const data = JSON.parse(event.data);
+      if (data.method === "logsNotification") {
+        lastTransactionTime = Date.now();
+        updateNetworkStatus();
+      }
+    };
+
+    socket.onclose = function() {
+      console.log('WebSocket déconnecté');
+      handleWebSocketError();
+    };
+
     const priceData = [];
     const priceLabels = [];
     const maxDataPoints = 20;
@@ -245,43 +385,49 @@ socket.onclose = function() {
           backgroundColor: 'rgba(0, 0, 0, 0.1)',
           fill: true,
           tension: 0.1,
-          borderWidth: 2 // Ligne légèrement plus épaisse pour visibilité
+          borderWidth: 2
         }]
       },
       options: {
         responsive: true,
         scales: {
-          x: {
-            display: true,
-            title: {
-              display: true,
-              text: 'Heure',
-              color: '#fff',
-              font: { size: 14 } // Taille augmentée
-            },
-            ticks: { color: '#fff', font: { size: 12 } }
-          },
-          y: {
-            beginAtZero: false,
-            title: {
-              display: true,
-              text: 'Prix (USD)',
-              color: '#fff',
-              font: { size: 14 }
-            },
-            ticks: { color: '#fff', font: { size: 12 } }
-          }
+          x: { display: true, title: { display: true, text: 'Heure', color: '#fff', font: { size: 14 } }, ticks: { color: '#fff', font: { size: 12 } } },
+          y: { beginAtZero: false, title: { display: true, text: 'Prix (USD)', color: '#fff', font: { size: 14 } }, ticks: { color: '#fff', font: { size: 12 } } }
         },
-        plugins: {
-          legend: {
-            display: true,
-            labels: { 
-              color: '#fff',
-              font: { size: 14 } // Légende plus grande
-            }
-          }
-        }
+        plugins: { legend: { display: true, labels: { color: '#fff', font: { size: 14 } } } }
       }
+    });
+
+    const modal = document.getElementById('modal');
+    const modalDetails = document.getElementById('modal-details');
+    const modalClose = document.getElementById('modal-close');
+
+    modalClose.addEventListener('click', () => {
+      modal.style.display = 'none';
+    });
+
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.style.display = 'none';
+      }
+    });
+
+    pauseResumeBtn.addEventListener('click', () => {
+      isPaused = !isPaused;
+      pauseResumeBtn.textContent = isPaused ? 'Resume' : 'Pause';
+      pauseResumeBtn.classList.toggle('paused', isPaused);
+      if (!isPaused) {
+        updateTransactions();
+      }
+    });
+
+    searchBar.addEventListener('input', () => {
+      const query = searchBar.value.toLowerCase();
+      Array.from(tbody.children).forEach(row => {
+        const signature = row.children[0].textContent.toLowerCase();
+        const block = row.children[2].textContent.toLowerCase();
+        row.style.display = (signature.includes(query) || block.includes(query)) ? '' : 'none';
+      });
     });
 
     function createSocket() {
@@ -311,10 +457,22 @@ socket.onclose = function() {
           row.appendChild(createCell(signature));
           row.appendChild(createCell(time));
           row.appendChild(createCell(block));
-          row.appendChild(createCell(instructions));
-          transactionQueue.push(row);
+          row.appendChild(createCell(instructions.slice(0, 30) + '...'));
+          
+          row.dataset.details = JSON.stringify({ signature, time, block, instructions });
 
+          row.addEventListener('click', () => {
+            const details = JSON.parse(row.dataset.details);
+            modalDetails.textContent = `Signature: ${details.signature}\nTime: ${details.time}\nBlock: ${details.block}\nInstructions:\n${details.instructions}`;
+            modal.style.display = 'flex';
+          });
+
+          transactionQueue.push(row);
           transactionCount++;
+
+          if (tbody.children.length === 0 && transactionQueue.length > 0) {
+            tableLoader.classList.add('hidden');
+          }
         }
       };
 
@@ -335,6 +493,7 @@ socket.onclose = function() {
     }
 
     function updateTransactions() {
+      if (isPaused) return;
       if (transactionQueue.length > 0) {
         const fragment = document.createDocumentFragment();
         while (transactionQueue.length > 0 && fragment.childNodes.length < 5) {
@@ -344,6 +503,7 @@ socket.onclose = function() {
         while (tbody.childNodes.length > MAX_TRANSACTIONS) {
           tbody.removeChild(tbody.lastChild);
         }
+        searchBar.dispatchEvent(new Event('input'));
       }
     }
 
@@ -354,8 +514,6 @@ socket.onclose = function() {
         const data = await res.json();
         const price = parseFloat(data.price).toFixed(2);
         priceElement.textContent = `SOL Price: $${price}`;
-
-        // Mise à jour du graphique
         const now = new Date().toLocaleTimeString();
         priceData.push(price);
         priceLabels.push(now);
@@ -364,6 +522,8 @@ socket.onclose = function() {
           priceLabels.shift();
         }
         priceChart.update();
+
+        chartLoader.classList.add('hidden');
       } catch (e) {
         priceElement.textContent = `SOL Price: Indisponible (${e.message})`;
       }
@@ -388,16 +548,27 @@ socket.onclose = function() {
       const tps = (transactionCount / tpsWindow).toFixed(1);
       currentTpsElement.textContent = `${tps} tx/s`;
       transactionCount = 0;
+
+      // Color-Coded TPS
+      if (tps > 1000) {
+        currentTpsElement.style.color = "green"; // High TPS
+      } else if (tps >= 500) {
+        currentTpsElement.style.color = "yellow"; // Medium TPS
+      } else {
+        currentTpsElement.style.color = "red"; // Low TPS
+      }
     }
 
     // Initialisation
     createSocket();
-    setInterval(updateTransactions, 300);
+    setInterval(updateTransactions, 500); // Using 500ms as recommended
     fetchSolPrice();
     fetchSolSupply();
     setInterval(fetchSolPrice, 10000);
     setInterval(fetchSolSupply, 30000);
     setInterval(updateTPS, tpsWindow * 1000);
+
+    updateNetworkStatus();
   </script>
 </body>
 </html>
